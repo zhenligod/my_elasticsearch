@@ -9,10 +9,10 @@ import (
 
 func main() {
 	es, err := elasticsearch.NewClient(elasticsearch.Config{
-		Addresses: []string{"http://localhost:9200"},
+		Addresses: []string{"http://9.135.127.17:9200"},
 		Transport: nil,
 		Username:  "elastic",
-		Password:  "",
+		Password:  "paNBq*2693br",
 	})
 
 	if err != nil {
