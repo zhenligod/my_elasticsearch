@@ -83,3 +83,37 @@ func Search(body string) (*esapi.Response, error) {
 
 	return res, nil
 }
+
+// CreateDoc add doc with es client
+func CreateDoc(id string, body string) (*esapi.Response, error) {
+	res, err := es.Create(esIndex, id, strings.NewReader(body))
+
+	if err != nil {
+		log.Fatalf("Error getting response: %s", err)
+		return nil, err
+	}
+
+	return res, nil
+}
+
+// UpdateDoc update doc with es client
+func UpdateDoc(id string, body string) (*esapi.Response, error) {
+	res, err := es.Update(esIndex, id, strings.NewReader(body))
+	if err != nil {
+		log.Fatalf("Error getting response: %s", err)
+		return nil, err
+	}
+
+	return res, nil
+}
+
+// DeleteDoc delete doc with es client
+func DeleteDoc(id string) (*esapi.Response, error) {
+	res, err := es.Delete(esIndex, id)
+	if err != nil {
+		log.Fatalf("Error getting response: %s", err)
+		return nil, err
+	}
+
+	return res, nil
+}
