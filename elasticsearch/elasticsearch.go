@@ -5,15 +5,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
+	"strings"
 
 	elasticsearch "github.com/elastic/go-elasticsearch/v6"
+	"github.com/robfig/config"
 	log "github.com/sirupsen/logrus"
 )
 
 var es *elasticsearch.Client
 var esAddr string = "http://ip:port" // es 地址及端口
-var esIndex string = "job*"          // index 前缀，表示获取job*的所有index
+var esIndex string = "my_index"      // index 前缀，表示获取job*的所有index
+var configFile = flag.String("configfile", "conf/es.conf", "General configuration file")
 
 // EsConf es配置
 type EsConf struct {
@@ -25,8 +29,36 @@ type EsConf struct {
 
 func init() {
 	var err error
+	conf := make(map[string]string)
+	cfg, err := config.ReadDefault(*configFile) //读取配置文件，并返回其Config
+
+	if err != nil {
+		log.Fatalf("Fail to find %v,%v", *configFile, err)
+	}
+	if cfg.HasSection("es") { //判断配置文件中是否有section（一级标签）
+		options, err := cfg.SectionOptions("es") //获取一级标签的所有子标签options（只有标签没有值）
+		if err == nil {
+			for _, v := range options {
+				optionValue, err := cfg.String("es", v) //根据一级标签section和option获取对应的值
+				if err == nil {
+					conf[v] = optionValue
+				}
+			}
+		}
+	}
+	log.Println(conf)
 	config := elasticsearch.Config{}
-	config.Addresses = []string{esAddr}
+	esConf := EsConf{}
+	esConf.IP = conf["es_hostname"]
+	esConf.Port = conf["es_port"]
+	esConf.Index = conf["es_index"]
+	address := strings.Join([]string{
+		"http",
+		"//" + esConf.IP,
+		esConf.Port,
+	}, ":")
+	esIndex = esConf.Index
+	config.Addresses = []string{address}
 	es, err = elasticsearch.NewClient(config)
 	if err != nil {
 		log.Error(err.Error())
@@ -34,7 +66,7 @@ func init() {
 }
 
 // SearchByJob 通过job名称获取es日志
-func SearchByJob(job string, conf EsConf) (*string, error) {
+func SearchByJob(job string) (*string, error) {
 	var (
 		buf bytes.Buffer
 		r   map[string]interface{}
