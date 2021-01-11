@@ -1,30 +1,30 @@
 package elasticsearch
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
-	"errors"
 	"flag"
-	"fmt"
+	"log"
 	"strings"
 
-	elasticsearch "github.com/elastic/go-elasticsearch/v6"
+	"github.com/elastic/go-elasticsearch/v6"
+	"github.com/elastic/go-elasticsearch/v6/esapi"
 	"github.com/robfig/config"
-	log "github.com/sirupsen/logrus"
 )
 
-var es *elasticsearch.Client
-var esAddr string = "http://ip:port" // es 地址及端口
-var esIndex string = "my_index"      // index 前缀，表示获取job*的所有index
-var configFile = flag.String("configfile", "conf/es.conf", "General configuration file")
+var (
+	es         *elasticsearch.Client
+	esAddr     string = "http://localhost:9200" // es 地址及端口
+	esIndex    string = "my_index"              // index 前缀
+	configFile        = flag.String("configfile", "conf/es.conf", "General configuration file")
+)
 
 // EsConf es配置
 type EsConf struct {
-	IP    string
-	Port  string
-	Index string
-	Es    *elasticsearch.Client
+	IP       string
+	Port     string
+	Index    string
+	Username string
+	Passwd   string
+	Es       *elasticsearch.Client
 }
 
 func init() {
@@ -46,12 +46,13 @@ func init() {
 			}
 		}
 	}
-	log.Println(conf)
 	config := elasticsearch.Config{}
 	esConf := EsConf{}
 	esConf.IP = conf["es_hostname"]
 	esConf.Port = conf["es_port"]
 	esConf.Index = conf["es_index"]
+	esConf.Username = conf["es_username"]
+	esConf.Passwd = conf["es_passwd"]
 	address := strings.Join([]string{
 		"http",
 		"//" + esConf.IP,
@@ -59,75 +60,26 @@ func init() {
 	}, ":")
 	esIndex = esConf.Index
 	config.Addresses = []string{address}
+	config.Username = esConf.Username
+	config.Password = esConf.Passwd
 	es, err = elasticsearch.NewClient(config)
 	if err != nil {
-		log.Error(err.Error())
+		log.Fatalf(err.Error())
 	}
 }
 
-// SearchByJob 通过job名称获取es日志
-func SearchByJob(job string) (*string, error) {
-	var (
-		buf bytes.Buffer
-		r   map[string]interface{}
-		bt  bytes.Buffer
-	)
-	query := map[string]interface{}{
-		"query": map[string]interface{}{
-			"match_phrase": map[string]interface{}{
-				"kubernetes.labels.tf-job-name": job, //具体的查询条件，可以根据日志格式进行修改
-			},
-		},
-		"_source": map[string]interface{}{
-			"includes": []interface{}{
-				"log",
-			},
-		},
-		"sort": map[string]interface{}{ // 排序
-			"@timestamp": map[string]interface{}{
-				"order": "asc",
-			},
-			"_id": map[string]interface{}{
-				"order": "asc",
-			},
-		},
-	}
-	//fmt.Println(query)
-	if err := json.NewEncoder(&buf).Encode(query); err != nil {
-		log.Errorf("Error encoding query: %s", err)
-		return nil, err
-	}
+// Search search docs
+func Search(body string) (*esapi.Response, error) {
 	res, err := es.Search(
-		es.Search.WithContext(context.Background()),
 		es.Search.WithIndex(esIndex),
-		es.Search.WithBody(&buf),
-		es.Search.WithTrackTotalHits(true),
+		es.Search.WithBody(strings.NewReader(body)),
 		es.Search.WithPretty(),
-		es.Search.WithSize(100000),
 	)
+
 	if err != nil {
-		log.Errorf("Error getting response: %s", err)
+		log.Fatalf("Error getting response: %s", err)
 		return nil, err
 	}
-	defer res.Body.Close()
-	fmt.Println(res)
-	if res.IsError() {
-		log.Error(res)
-		return nil, errors.New(fmt.Sprint(res))
-	}
-	if res.StatusCode != 200 {
-		log.Errorf("request error: %d", res.StatusCode)
-		return nil, err
-	}
-	//fmt.Println(res)
-	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
-		log.Errorf("Error parsing the response body: %s", err)
-		return nil, err
-	}
-	log.Infof("log length: %d", len(r["hits"].(map[string]interface{})["hits"].([]interface{})))
-	for _, hit := range r["hits"].(map[string]interface{})["hits"].([]interface{}) {
-		bt.WriteString(fmt.Sprintf("%s", hit.(map[string]interface{})["_source"].(map[string]interface{})["log"]))
-	}
-	logs := bt.String()
-	return &logs, nil
+
+	return res, nil
 }
