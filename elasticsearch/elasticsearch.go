@@ -35,11 +35,11 @@ func init() {
 	if err != nil {
 		log.Fatalf("Fail to find %v,%v", *configFile, err)
 	}
-	if cfg.HasSection("es") { //判断配置文件中是否有section（一级标签）
-		options, err := cfg.SectionOptions("es") //获取一级标签的所有子标签options（只有标签没有值）
+	if cfg.HasSection("es_goods") { //判断配置文件中是否有section（一级标签）
+		options, err := cfg.SectionOptions("es_goods") //获取一级标签的所有子标签options（只有标签没有值）
 		if err == nil {
 			for _, v := range options {
-				optionValue, err := cfg.String("es", v) //根据一级标签section和option获取对应的值
+				optionValue, err := cfg.String("es_goods", v) //根据一级标签section和option获取对应的值
 				if err == nil {
 					conf[v] = optionValue
 				}
@@ -110,6 +110,17 @@ func UpdateDoc(id string, body string) (*esapi.Response, error) {
 // DeleteDoc delete doc with es client
 func DeleteDoc(id string) (*esapi.Response, error) {
 	res, err := es.Delete(esIndex, id)
+	if err != nil {
+		log.Fatalf("Error getting response: %s", err)
+		return nil, err
+	}
+
+	return res, nil
+}
+
+// GetDoc get sigle doc from es
+func GetDoc(id string) (*esapi.Response, error) {
+	res, err := es.Get(esIndex, id)
 	if err != nil {
 		log.Fatalf("Error getting response: %s", err)
 		return nil, err
