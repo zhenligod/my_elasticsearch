@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/cch123/elasticsql"
 )
 
 func TestAddDoc(t *testing.T) {
@@ -55,6 +57,17 @@ func TestGetDoc(t *testing.T) {
 	}
 	log.Println(res)
 	t.Log("get doc test ok!!!")
+}
+
+func TestSearchSqlDoc(t *testing.T) {
+	query, _, _ := elasticsql.Convert("select * from goods where price > 10 limit 10 order by price")
+	res, err := Search(query)
+	defer res.Body.Close()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	log.Println(res)
+	t.Log("search sql test ok!!!")
 }
 
 func TestDelDoc(t *testing.T) {

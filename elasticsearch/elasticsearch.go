@@ -14,7 +14,7 @@ var (
 	es         *elasticsearch.Client
 	esAddr     string = "http://localhost:9200" // es 地址及端口
 	esIndex    string = "my_index"              // index 前缀
-	configFile        = flag.String("configfile", "conf/es.conf", "General configuration file")
+	configFile        = flag.String("configfile", "../conf/es.conf", "General configuration file")
 )
 
 // EsConf es配置
@@ -121,6 +121,17 @@ func DeleteDoc(id string) (*esapi.Response, error) {
 // GetDoc get sigle doc from es
 func GetDoc(id string) (*esapi.Response, error) {
 	res, err := es.Get(esIndex, id)
+	if err != nil {
+		log.Fatalf("Error getting response: %s", err)
+		return nil, err
+	}
+
+	return res, nil
+}
+
+// SQLDoc exec sql query
+func SQLDoc(body string) (*esapi.Response, error) {
+	res, err := es.SQL.Query(strings.NewReader(body))
 	if err != nil {
 		log.Fatalf("Error getting response: %s", err)
 		return nil, err
