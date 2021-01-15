@@ -7,14 +7,14 @@ import (
 
 	"github.com/elastic/go-elasticsearch/v6"
 	"github.com/elastic/go-elasticsearch/v6/esapi"
-	"github.com/robfig/config"
+	"github.com/zhenligod/my_elasticsearch/conf"
 )
 
 var (
-	es         *elasticsearch.Client
-	esAddr     string = "http://localhost:9200" // es 地址及端口
-	esIndex    string = "my_index"              // index 前缀
-	configFile        = flag.String("configfile", "../conf/es.conf", "General configuration file")
+	es      *elasticsearch.Client
+	esAddr  string = "http://localhost:9200" // es 地址及端口
+	esIndex string = "my_index"              // index 前缀
+	path           = flag.String("configfile", "../conf/es.conf", "General configuration file")
 )
 
 // EsConf es配置
@@ -28,23 +28,10 @@ type EsConf struct {
 }
 
 func init() {
-	var err error
-	conf := make(map[string]string)
-	cfg, err := config.ReadDefault(*configFile) //读取配置文件，并返回其Config
-
+	confTitle := "es_goods"
+	conf, err := conf.GetConf(confTitle, path)
 	if err != nil {
-		log.Fatalf("Fail to find %v,%v", *configFile, err)
-	}
-	if cfg.HasSection("es_goods") { //判断配置文件中是否有section（一级标签）
-		options, err := cfg.SectionOptions("es_goods") //获取一级标签的所有子标签options（只有标签没有值）
-		if err == nil {
-			for _, v := range options {
-				optionValue, err := cfg.String("es_goods", v) //根据一级标签section和option获取对应的值
-				if err == nil {
-					conf[v] = optionValue
-				}
-			}
-		}
+		log.Fatalf(err.Error())
 	}
 	config := elasticsearch.Config{}
 	esConf := EsConf{}
